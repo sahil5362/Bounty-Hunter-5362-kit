@@ -1,0 +1,123 @@
+-- LocalScript
+
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- Variables
+local LocalPlayer = Players.LocalPlayer
+local teleportInterval = 10  -- Time in seconds to teleport to the next player
+local hitboxMultiplier = 100
+local isActive = true
+
+-- Function to teleport to a random player
+local function teleportToRandomPlayer()
+    local otherPlayers = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            table.insert(otherPlayers, player)
+        end
+    end
+
+    if #otherPlayers > 0 then
+        local randomPlayer = otherPlayers[math.random(1, #otherPlayers)]
+        LocalPlayer.Character.HumanoidRootPart.CFrame = randomPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0, 10, 0)
+    end
+end
+
+-- Function to change hitbox size
+local function changeHitboxSize(sizeMultiplier)
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.HipWidth = humanoid.HipWidth * sizeMultiplier
+                humanoid.HipHeight = humanoid.HipHeight * sizeMultiplier
+            end
+        end
+    end
+end
+
+-- Function to reset hitbox size
+local function resetHitboxSize()
+    for _, player in pairs(Players:GetPlayers()) do
+        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.HipWidth = humanoid.HipWidth / hitboxMultiplier
+            humanoid.HipHeight = humanoid.HipHeight / hitboxMultiplier
+        end
+    end
+end
+
+-- Create GUI Button
+local ScreenGui = Instance.new("ScreenGui")
+local NextButton = Instance.new("TextButton")
+
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+NextButton.Size = UDim2.new(0, 200, 0, 50)
+NextButton.Position = UDim2.new(0.5, -100, 0.9, -25)
+NextButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+NextButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+NextButton.Text = "Next"
+NextButton.Parent = ScreenGui
+
+-- Function to switch to the next player
+local function switchToNextPlayer()
+    local otherPlayers = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            table.insert(otherPlayers, player)
+        end
+    end
+
+    if #otherPlayers > 0 then
+        -- Logic to switch to the next player
+        -- This part requires additional handling based on game design
+    end
+end
+
+-- Handle button dragging
+local dragging = false
+local dragInput, mousePos, startPos
+
+local function updateButtonPosition(input)
+    local delta = input.Position - mousePos
+    NextButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+NextButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragInput = input
+        mousePos = input.Position
+        startPos = NextButton.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        updateButtonPosition(input)
+    end
+end)
+
+-- Main loop to handle teleportation and hitbox resizing
+RunService.Heartbeat:Connect(function()
+    if isActive then
+        teleportToRandomPlayer()
+        changeHitboxSize(hitboxMultiplier)
+
+        wait(10)  -- Wait 10 seconds
+        resetHitboxSize()
+        -- Implement player death handling to switch player
+    end
+end)
+
+-- Connect button to switch to the next player
+NextButton.MouseButton1Click:Connect(switchToNextPlayer)

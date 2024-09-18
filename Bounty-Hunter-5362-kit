@@ -1,123 +1,221 @@
--- LocalScript
-
--- Services
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-
--- Variables
-local LocalPlayer = Players.LocalPlayer
-local teleportInterval = 10  -- Time in seconds to teleport to the next player
-local hitboxMultiplier = 100
-local isActive = true
-
--- Function to teleport to a random player
-local function teleportToRandomPlayer()
-    local otherPlayers = {}
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            table.insert(otherPlayers, player)
-        end
-    end
-
-    if #otherPlayers > 0 then
-        local randomPlayer = otherPlayers[math.random(1, #otherPlayers)]
-        LocalPlayer.Character.HumanoidRootPart.CFrame = randomPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0, 10, 0)
-    end
-end
-
--- Function to change hitbox size
-local function changeHitboxSize(sizeMultiplier)
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid.HipWidth = humanoid.HipWidth * sizeMultiplier
-                humanoid.HipHeight = humanoid.HipHeight * sizeMultiplier
-            end
-        end
-    end
-end
-
--- Function to reset hitbox size
-local function resetHitboxSize()
-    for _, player in pairs(Players:GetPlayers()) do
-        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.HipWidth = humanoid.HipWidth / hitboxMultiplier
-            humanoid.HipHeight = humanoid.HipHeight / hitboxMultiplier
-        end
-    end
-end
-
--- Create GUI Button
+-- Define UI elements for transparency, hitbox scaling, flying, and auto-aim
 local ScreenGui = Instance.new("ScreenGui")
-local NextButton = Instance.new("TextButton")
+local Frame = Instance.new("Frame")
+local DragFrame = Instance.new("Frame")
+local CloseButton = Instance.new("TextButton")
+local TransparencySlider = Instance.new("TextButton")
+local SizeSlider = Instance.new("TextButton")
+local TransparencyLabel = Instance.new("TextLabel")
+local SizeLabel = Instance.new("TextLabel")
+local FloatButton = Instance.new("TextButton")
+local AutoAimButton = Instance.new("TextButton")
 
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+local localPlayer = game.Players.LocalPlayer -- Get the player using the script
+local floatActive = false -- Keep track of whether the float is active
+local autoAimActive = false -- Keep track of whether auto-aim is active
+local aimAssistRange = 10000 -- Range for auto-aim
+local aimSpeed = 0.1 -- Speed at which the camera adjusts
 
-NextButton.Size = UDim2.new(0, 200, 0, 50)
-NextButton.Position = UDim2.new(0.5, -100, 0.9, -25)
-NextButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-NextButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-NextButton.Text = "Next"
-NextButton.Parent = ScreenGui
+ScreenGui.Name = "5362-Kit"
+ScreenGui.Parent = game.CoreGui
 
--- Function to switch to the next player
-local function switchToNextPlayer()
-    local otherPlayers = {}
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            table.insert(otherPlayers, player)
+-- Frame settings (2 times bigger)
+Frame.Name = "MainFrame"
+Frame.Parent = ScreenGui
+Frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+Frame.BackgroundTransparency = 0.2
+Frame.Position = UDim2.new(0.2, 0, 0.3, 0)
+Frame.Size = UDim2.new(0.5, 0, 0.7, 0) -- Increased size
+Frame.Active = true
+Frame.Draggable = true
+
+-- DragFrame (to allow dragging)
+DragFrame.Name = "DragFrame"
+DragFrame.Parent = Frame
+DragFrame.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+DragFrame.Size = UDim2.new(1, 0, 0.1, 0)
+DragFrame.Position = UDim2.new(0, 0, 0, 0)
+DragFrame.Active = true
+DragFrame.Draggable = true
+
+-- Transparency slider button settings
+TransparencySlider.Name = "TransparencySlider"
+TransparencySlider.Parent = Frame
+TransparencySlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+TransparencySlider.Position = UDim2.new(0.1, 0, 0.2, 0)
+TransparencySlider.Size = UDim2.new(0.8, 0, 0.2, 0)
+TransparencySlider.Text = "Adjust Transparency"
+TransparencySlider.TextColor3 = Color3.fromRGB(255, 0, 0)
+
+-- Size slider button settings
+SizeSlider.Name = "SizeSlider"
+SizeSlider.Parent = Frame
+SizeSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+SizeSlider.Position = UDim2.new(0.1, 0, 0.5, 0)
+SizeSlider.Size = UDim2.new(0.8, 0, 0.2, 0)
+SizeSlider.Text = "Adjust Size"
+SizeSlider.TextColor3 = Color3.fromRGB(255, 0, 0)
+
+-- Close button settings
+CloseButton.Name = "CloseButton"
+CloseButton.Parent = Frame
+CloseButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+CloseButton.Position = UDim2.new(0.35, 0, 0.8, 0)
+CloseButton.Size = UDim2.new(0.3, 0, 0.1, 0)
+CloseButton.Text = "Close"
+CloseButton.TextColor3 = Color3.fromRGB(255, 0, 0)
+
+-- "Float Above Head" button
+FloatButton.Name = "FloatButton"
+FloatButton.Parent = Frame
+FloatButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+FloatButton.Position = UDim2.new(0.1, 0, 0.7, 0)
+FloatButton.Size = UDim2.new(0.8, 0, 0.1, 0)
+FloatButton.Text = "Float Above Head"
+FloatButton.TextColor3 = Color3.fromRGB(255, 0, 0)
+
+-- "Auto Aim" button
+AutoAimButton.Name = "AutoAimButton"
+AutoAimButton.Parent = Frame
+AutoAimButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+AutoAimButton.Position = UDim2.new(0.1, 0, 0.85, 0)
+AutoAimButton.Size = UDim2.new(0.8, 0, 0.1, 0)
+AutoAimButton.Text = "Auto Aim"
+AutoAimButton.TextColor3 = Color3.fromRGB(255, 0, 0)
+
+-- Labels
+TransparencyLabel.Name = "TransparencyLabel"
+TransparencyLabel.Parent = Frame
+TransparencyLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+TransparencyLabel.BackgroundTransparency = 1
+TransparencyLabel.Position = UDim2.new(0.1, 0, 0.05, 0)
+TransparencyLabel.Size = UDim2.new(0.8, 0, 0.1, 0)
+TransparencyLabel.Text = "Hitbox Transparency: 80%"
+
+SizeLabel.Name = "SizeLabel"
+SizeLabel.Parent = Frame
+SizeLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+SizeLabel.BackgroundTransparency = 1
+SizeLabel.Position = UDim2.new(0.1, 0, 0.35, 0)
+SizeLabel.Size = UDim2.new(0.8, 0, 0.1, 0)
+SizeLabel.Text = "Hitbox Size: 1x"
+
+-- Functionality for sliders (adjust transparency)
+TransparencySlider.MouseButton1Click:Connect(function()
+    local transparency = tonumber(TransparencyLabel.Text:match("%d+"))
+    transparency = (transparency + 10) % 101
+    TransparencyLabel.Text = "Hitbox Transparency: " .. transparency .. "%"
+    
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+            if player ~= localPlayer then -- Only adjust hitbox for other players
+                rootPart.Transparency = transparency / 100
+            end
+        end
+    end
+end)
+
+-- Functionality for size slider (adjust size up to 100x, except for the local player)
+SizeSlider.MouseButton1Click:Connect(function()
+    local size = tonumber(SizeLabel.Text:match("%d+"))
+    size = (size % 100) + 1
+    SizeLabel.Text = "Hitbox Size: " .. size .. "x"
+    
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+            if player ~= localPlayer then -- Skip adjusting the local player's hitbox
+                rootPart.Size = Vector3.new(2 * size, 2 * size, 1 * size)
+            end
+        end
+    end
+end)
+
+-- Close button functionality
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+-- Find the nearest player function
+local function getNearestPlayer()
+    local nearestPlayer = nil
+    local shortestDistance = aimAssistRange
+    
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (localPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).magnitude
+            if distance < shortestDistance then
+                shortestDistance = distance
+                nearestPlayer = player
+            end
+        end
+    end
+    
+    return nearestPlayer
+end
+
+-- Float above nearest player's head
+FloatButton.MouseButton1Click:Connect(function()
+    if not floatActive then
+        floatActive = true -- Prevent multiple instances
+        local nearestPlayer = getNearestPlayer()
+        
+        if nearestPlayer and nearestPlayer.Character and nearestPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local target = nearestPlayer.Character:FindFirstChild("HumanoidRootPart")
+            
+            -- Tween to fly above the target player
+            local tweenService = game:GetService("TweenService")
+            local goal = {Position = target.Position + Vector3.new(0, 10, 0)} -- Float 10 studs above
+            local tweenInfo = TweenInfo.new((hrp.Position - goal.Position).magnitude / 300, Enum.EasingStyle.Linear)
+            local tween = tweenService:Create(hrp, tweenInfo, goal)
+            tween:Play()
+
+            -- Keep the player floating above the target player until the target dies
+            local connection
+            connection = game:GetService("RunService").Heartbeat:Connect(function()
+                if nearestPlayer and nearestPlayer.Character and nearestPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    hrp.CFrame = CFrame.new(target.Position + Vector3.new(0, 10, 0))
+                else
+                    connection:Disconnect()
+                    floatActive = false -- Allow floating again after the player dies
+                end
+            end)
         end
     end
 
-    if #otherPlayers > 0 then
-        -- Logic to switch to the next player
-        -- This part requires additional handling based on game design
-    end
-end
+-- Auto-Aim Functionality
+AutoAimButton.MouseButton1Click:Connect(function()
+    autoAimActive = not autoAimActive -- Toggle auto-aim on/off
 
--- Handle button dragging
-local dragging = false
-local dragInput, mousePos, startPos
-
-local function updateButtonPosition(input)
-    local delta = input.Position - mousePos
-    NextButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
-
-NextButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragInput = input
-        mousePos = input.Position
-        startPos = NextButton.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
+    if autoAimActive then
+        AutoAimButton.Text = "Auto Aim: ON"
+        
+        -- Function to automatically aim at the nearest player
+        local function aimAtNearestPlayer()
+            while autoAimActive do
+                local nearestPlayer = getNearestPlayer()
+                if nearestPlayer and nearestPlayer.Character and nearestPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    local target = nearestPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local hrp = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    
+                    -- Smoothly adjust the camera to face the target
+                    local cam = game.Workspace.CurrentCamera
+                    local targetPos = target.Position
+                    local camPos = cam.CFrame.Position
+                    local direction = (targetPos - camPos).unit
+                    local newCamCFrame = CFrame.new(camPos, camPos + direction)
+                    
+                    cam.CFrame = CFrame.new(cam.CFrame.Position, target.Position)
+                end
+                wait(aimSpeed) -- Adjust the speed of the aiming
             end
-        end)
+        end
+        
+        -- Start aiming at the nearest player
+        spawn(aimAtNearestPlayer)
+    else
+        AutoAimButton.Text = "Auto Aim: OFF"
     end
 end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input == dragInput then
-        updateButtonPosition(input)
-    end
-end)
-
--- Main loop to handle teleportation and hitbox resizing
-RunService.Heartbeat:Connect(function()
-    if isActive then
-        teleportToRandomPlayer()
-        changeHitboxSize(hitboxMultiplier)
-
-        wait(10)  -- Wait 10 seconds
-        resetHitboxSize()
-        -- Implement player death handling to switch player
-    end
-end)
-
--- Connect button to switch to the next player
-NextButton.MouseButton1Click:Connect(switchToNextPlayer)
